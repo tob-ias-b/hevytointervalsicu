@@ -1,0 +1,4 @@
+"title","start_time","end_time","description","exercise_title","superset_id","exercise_notes","set_index","set_type","weight_kg","reps","distance_km","duration_seconds","rpe"
+"Example Workout","18 Nov 2026, 18:22","18 Nov 2026, 19:42","Example activity","Bulgarian Split Squat (Dumbbell)","","",0,"warmup",20,10,,,
+"Example Workout","18 Nov 2026, 18:22","18 Nov 2026, 19:42","Example activity","Bulgarian Split Squat (Dumbbell)","","",1,"normal",28,10,,,
+"Example Workout","18 Nov 2026, 18:22","18 Nov 2026, 19:42","Example activity","Shoulder Press (Dumbbell)","","",0,"normal",20,5,,,

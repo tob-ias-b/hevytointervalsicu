@@ -1,0 +1,21 @@
+# Personal exports and generated uploads
+/data/
+*.csv
+*.fit
+*.tcx
+*.gpx
+*.zip
+intervals_icu_manual_activities.json
+!examples/*.csv
+
+# Local secrets and editor state
+.env
+.env.*
+*.key
+*.pem
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Keep the data directory available locally, but not its contents
+!data/.gitkeep

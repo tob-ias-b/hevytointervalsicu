@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hevy to intervals.icu</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">LOCAL CONVERTER</p>
+        <h1>Hevy to intervals.icu</h1>
+      </div>
+      <span id="statusBadge" class="status-badge">Ready</span>
+    </header>
+
+    <section class="grid">
+      <aside class="panel settings">
+        <h2>Source</h2>
+        <label class="field">
+          <span>Workout CSV</span>
+          <input id="csvFile" type="file" accept=".csv,text/csv">
+        </label>
+
+        <label class="field">
+          <span>Timezone</span>
+          <input id="timezone" type="text" list="timezoneList" placeholder="Browser timezone">
+          <datalist id="timezoneList">
+            <option value="Europe/London"></option>
+            <option value="Europe/Paris"></option>
+            <option value="America/New_York"></option>
+            <option value="America/Los_Angeles"></option>
+            <option value="UTC"></option>
+          </datalist>
+        </label>
+
+        <h2>Intervals.icu</h2>
+        <label class="field">
+          <span>API key</span>
+          <input id="apiKey" type="password" autocomplete="current-password" placeholder="Stored only in this tab">
+        </label>
+
+        <button id="convertButton" class="primary" type="button">Convert CSV</button>
+      </aside>
+
+      <section class="panel results">
+        <div class="results-header">
+          <div>
+            <p class="eyebrow">ACTIVITIES</p>
+            <h2 id="resultCount">No file loaded</h2>
+          </div>
+          <div class="actions">
+            <button id="downloadButton" type="button" disabled>Download JSON</button>
+            <button id="uploadButton" class="primary" type="button" disabled>Upload to intervals.icu</button>
+          </div>
+        </div>
+
+        <div id="warnings" class="warnings" hidden></div>
+        <div id="workoutList" class="workout-list">
+          <div class="empty">Choose a Hevy CSV to generate a preview.</div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="jsonDialog">
+    <div class="dialog-header">
+      <h2 id="dialogTitle">Activity JSON</h2>
+      <button id="closeDialog" type="button" aria-label="Close">×</button>
+    </div>
+    <pre id="jsonPreview"></pre>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
