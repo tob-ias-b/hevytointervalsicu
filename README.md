@@ -1,18 +1,18 @@
 # Hevy to Intervals.icu
 
-A dependency-free browser tool that converts a Hevy CSV workout export into Intervals.icu manual activities and uploads them through the Intervals.icu API.
+A dependency-free browser tool for converting Hevy workouts into Intervals.icu manual activities. It offers two equally supported versions: CSV Feed imports a Hevy workout export, while API Feed fetches workouts directly from Hevy.
 
 The app does not upload FIT, TCX, GPX, or other activity files.
 
 ## Features
 
 - Runs entirely in the browser with no package installation.
-- Groups CSV rows into workouts by title, start time, and end time.
+- Supports CSV import and direct Hevy API access.
 - Generates stable SHA-256 IDs and `external_id` values.
 - Creates a grouped exercise description for each workout.
 - Calculates kilograms lifted from `weight_kg × reps`.
 - Downloads generated manual activities as JSON.
-- Uploads directly to the athlete associated with the API key.
+- Lets you select workouts before uploading them to Intervals.icu.
 
 ## Run locally
 
@@ -24,17 +24,15 @@ python3 -m http.server 4173 --directory wwwroot
 
 Then open `http://127.0.0.1:4173` and choose the CSV or API version.
 
-Select a real export from your computer in the app.
+Both versions can also be opened directly from `wwwroot/csvfeed/` and `wwwroot/apifeed/`.
 
-## API version
+## CSV Feed
 
-The API-based alternative is under `wwwroot/apifeed/`. Serve that folder with a static HTTP server and open the server URL:
+CSV Feed is under `wwwroot/csvfeed/`. Select a Hevy workout export, convert it, then choose which activities to upload. See [CSV format](#csv-format) for required columns.
 
-```sh
-python3 -m http.server 4174 --directory wwwroot/apifeed
-```
+## API Feed
 
-Enter a Hevy API key to fetch workouts and an Intervals.icu API key to upload selected workouts. Workouts are fetched 10 at a time; selections apply to the current page only. The browser must be able to make cross-origin requests to both APIs.
+API Feed is under `wwwroot/apifeed/`. Enter a Hevy API key to fetch workouts and an Intervals.icu API key to upload selected workouts. Workouts are fetched 10 at a time; selections apply to the current page only. The browser must be able to make cross-origin requests to both APIs.
 
 Run the API-version checks with:
 
