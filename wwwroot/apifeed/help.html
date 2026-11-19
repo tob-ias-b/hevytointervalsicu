@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Feed Help · Hevy to intervals.icu</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell help-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">API FEED GUIDE</p>
+        <h1>Using the API app</h1>
+      </div>
+      <a class="back-link" href="index.html">Back to app</a>
+    </header>
+
+    <article class="panel help-content">
+      <section>
+        <h2>Before you start</h2>
+        <p>Serve the app over HTTPS or from localhost. Your browser must be able to connect directly to both Hevy and Intervals.icu; the app does not use a server-side proxy.</p>
+      </section>
+
+      <section>
+        <h2>Get a Hevy API key</h2>
+        <ol>
+          <li>Read Hevy's <a href="https://developers.hevy.com/docs" target="_blank" rel="noopener noreferrer">official API documentation</a> and follow Hevy's current instructions for API access.</li>
+          <li>The published API documentation identifies the credential as an API key sent in the <code>api-key</code> request header, but does not document a self-service key-generation location. If you cannot obtain a key through Hevy, <a href="https://help.hevyapp.com/hc/en-us" target="_blank" rel="noopener noreferrer">contact Hevy support</a> to request API access.</li>
+          <li>Do not enter your Hevy account password here. Use only an API key issued or approved by Hevy.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Get an Intervals.icu API key</h2>
+        <p>In Intervals.icu, open your account or athlete settings and find the API key option. Copy that key for the upload field. Keep it private; it is separate from your Hevy key.</p>
+      </section>
+
+      <section>
+        <h2>Fetch and choose workouts</h2>
+        <ol>
+          <li>Enter the Hevy API key in the <strong>Hevy API key</strong> field.</li>
+          <li>Choose the timezone to use for the activity's local start time.</li>
+          <li>Select <strong>Fetch</strong>. The app retrieves up to 10 workouts per page. Use First, Previous, Next, and Last to navigate.</li>
+          <li>Select individual workouts, or use <strong>Select all</strong> to select every workout on the current page. Selection is cleared when you fetch another page.</li>
+          <li>Optionally choose <strong>Download JSON</strong> to save the selected activities before uploading.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Upload selected activities</h2>
+        <ol>
+          <li>Enter your Intervals.icu API key in the <strong>Intervals.icu API key</strong> field.</li>
+          <li>Select <strong>Upload selected to intervals.icu</strong>. Only checked workouts on the current page are sent.</li>
+          <li>Review the response or any error shown by the app. If browser access is blocked, check whether the API allows cross-origin requests from where this app is hosted.</li>
+        </ol>
+      </section>
+
+      <aside class="help-note">
+        API keys are held only in the current page and sent to their respective API. Do not share screenshots containing keys, and close the app tab when finished.
+      </aside>
+    </article>
+  </main>
+</body>
+</html>

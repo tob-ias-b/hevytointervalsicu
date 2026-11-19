@@ -1,30 +1,46 @@
 # Hevy to Intervals.icu
 
-A dependency-free browser tool that converts a Hevy CSV workout export into Intervals.icu manual activities and uploads them through the Intervals.icu API.
+A dependency-free browser tool for converting Hevy workouts into Intervals.icu manual activities. It offers two equally supported versions: CSV Feed imports a Hevy workout export, while API Feed fetches workouts directly from Hevy.
 
 The app does not upload FIT, TCX, GPX, or other activity files.
 
 ## Features
 
 - Runs entirely in the browser with no package installation.
-- Groups CSV rows into workouts by title, start time, and end time.
+- Supports CSV import and direct Hevy API access.
 - Generates stable SHA-256 IDs and `external_id` values.
 - Creates a grouped exercise description for each workout.
 - Calculates kilograms lifted from `weight_kg × reps`.
 - Downloads generated manual activities as JSON.
-- Uploads directly to the athlete associated with the API key.
+- Lets you select workouts before uploading them to Intervals.icu.
 
 ## Run locally
 
-Open `index.html` in a modern browser, or serve the folder with a static HTTP server:
+Open `wwwroot/index.html` in a modern browser, or serve the web root with a static HTTP server:
 
 ```sh
-python3 -m http.server 4173
+python3 -m http.server 4173 --directory wwwroot
 ```
 
-Then open `http://127.0.0.1:4173`.
+Then open `http://127.0.0.1:4173` and choose the CSV or API version.
 
-Place a real export in `data/`. That directory is ignored by Git.
+Both versions can also be opened directly from `wwwroot/csvfeed/` and `wwwroot/apifeed/`.
+
+## CSV Feed
+
+CSV Feed is under `wwwroot/csvfeed/`. Select a Hevy workout export, convert it, then choose which activities to upload. See [CSV format](#csv-format) for required columns.
+
+## API Feed
+
+API Feed is under `wwwroot/apifeed/`. Enter a Hevy API key to fetch workouts and an Intervals.icu API key to upload selected workouts. Workouts are fetched 10 at a time; selections apply to the current page only. The browser must be able to make cross-origin requests to both APIs.
+
+Run the API-version checks with:
+
+```sh
+./tests/apifeed/test.sh
+```
+
+The script uses Node for an optional JavaScript syntax check when available, then runs the API app contract tests with Python 3. These checks do not contact either API.
 
 ## CSV format
 
@@ -38,6 +54,14 @@ The source CSV must contain:
 - `reps`
 
 A synthetic example is included at `examples/hevy-export.csv`.
+
+Run the CSV-version checks with:
+
+```sh
+./tests/csvfeed/test.sh
+```
+
+The script uses Node for an optional JavaScript syntax check when available, then runs the CSV app contract tests with Python 3. These checks do not contact Intervals.icu.
 
 ## Conversion behavior
 

@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+import re
+import unittest
+from html.parser import HTMLParser
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+WWWROOT_DIR = REPO_ROOT / "wwwroot"
+APP_DIR = REPO_ROOT / "wwwroot" / "apifeed"
+LANDING_HTML = (WWWROOT_DIR / "index.html").read_text(encoding="utf-8")
+HTML = (APP_DIR / "index.html").read_text(encoding="utf-8")
+HELP_HTML = (APP_DIR / "help.html").read_text(encoding="utf-8")
+CSV_HTML = (WWWROOT_DIR / "csvfeed" / "index.html").read_text(encoding="utf-8")
+CSS = (APP_DIR / "styles.css").read_text(encoding="utf-8")
+JAVASCRIPT = (APP_DIR / "app.js").read_text(encoding="utf-8")
+
+
+class AppMarkup(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.ids = set()
+        self.labels = []
+        self.assets = []
+        self.links = []
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if "id" in attributes:
+            self.ids.add(attributes["id"])
+        if tag == "label":
+            self.labels.append(attributes)
+        if tag == "script" and attributes.get("src"):
+            self.assets.append(attributes["src"])
+        if tag == "link" and attributes.get("rel") == "stylesheet":
+            self.assets.append(attributes.get("href"))
+        if tag == "a":
+            self.links.append(attributes)
+
+    def handle_data(self, data):
+        pass
+
+
+def markup():
+    parser = AppMarkup()
+    parser.feed(HTML)
+    return parser
+
+
+class ApiAppContractTests(unittest.TestCase):
+    def test_all_script_selectors_exist_in_markup(self):
+        ids = markup().ids
+        selectors = set(re.findall(r'document\.querySelector\("#([^"]+)"\)', JAVASCRIPT))
+        self.assertTrue(selectors)
+        self.assertEqual(set(), selectors - ids)
+
+    def test_markup_loads_local_assets_and_has_separate_api_keys(self):
+        parsed = markup()
+        for asset in parsed.assets:
+            self.assertTrue((APP_DIR / asset).is_file(), asset)
+        self.assertIn('id="hevyApiKey"', HTML)
+        self.assertIn('id="intervalsApiKey"', HTML)
+        self.assertIn("Hevy API key", HTML)
+        self.assertIn("Intervals.icu API key", HTML)
+
+    def test_csv_source_is_absent_from_api_version(self):
+        self.assertNotIn('type="file"', HTML)
+        self.assertNotIn("csvFile", JAVASCRIPT)
+        self.assertNotIn("parseCsv", JAVASCRIPT)
+        self.assertIn('id="fetchButton"', HTML)
+        self.assertIn(">Fetch</button>", HTML)
+
+    def test_hevy_request_uses_documented_endpoint_auth_and_page_size(self):
+        self.assertIn("const PAGE_SIZE = 10;", JAVASCRIPT)
+        self.assertIn("https://api.hevyapp.com/v1/workouts?", JAVASCRIPT)
+        self.assertIn("new URLSearchParams({ page: String(requestedPage), pageSize: String(PAGE_SIZE) })", JAVASCRIPT)
+        self.assertIn('headers: { "api-key": key }', JAVASCRIPT)
+
+    def test_page_response_shape_is_validated_and_displayed(self):
+        self.assertIn("Array.isArray(data.workouts)", JAVASCRIPT)
+        self.assertIn("Number.isInteger(data.page)", JAVASCRIPT)
+        self.assertIn("Number.isInteger(data.page_count)", JAVASCRIPT)
+        self.assertIn("Page ${currentPage} of ${pageCount}", JAVASCRIPT)
+
+    def test_all_four_page_controls_have_boundary_logic(self):
+        for element_id in ("firstPageButton", "previousPageButton", "nextPageButton", "lastPageButton"):
+            self.assertIn(f'querySelector("#{element_id}")', JAVASCRIPT)
+        self.assertIn("const firstPage = currentPage <= 1;", JAVASCRIPT)
+        self.assertIn("const lastPage = currentPage <= 0 || currentPage >= pageCount;", JAVASCRIPT)
+        self.assertIn("firstPageButton.disabled = busy || firstPage;", JAVASCRIPT)
+        self.assertIn("previousPageButton.disabled = busy || firstPage;", JAVASCRIPT)
+        self.assertIn("nextPageButton.disabled = busy || lastPage;", JAVASCRIPT)
+        self.assertIn("lastPageButton.disabled = busy || lastPage;", JAVASCRIPT)
+
+    def test_selection_and_upload_are_limited_to_current_page(self):
+        self.assertIn("let selectedWorkoutIds = new Set();", JAVASCRIPT)
+        self.assertRegex(
+            JAVASCRIPT,
+            re.compile(r"function selectedActivities\(\)\s*\{\s*return currentWorkouts\s*\.filter", re.S),
+        )
+        self.assertIn("selectedWorkoutIds = new Set();", JAVASCRIPT)
+        self.assertIn("selectAllCheckbox.indeterminate", JAVASCRIPT)
+        self.assertIn("body: JSON.stringify(activities)", JAVASCRIPT)
+        self.assertIn("uploadButton.disabled = selectedCount === 0 || busy;", JAVASCRIPT)
+
+    def test_upload_reports_count_or_actionable_failure_without_response_json(self):
+        upload = JAVASCRIPT.split("async function uploadSelectedActivities()", 1)[1].split(
+            'fetchButton.addEventListener("click"', 1
+        )[0]
+        self.assertIn("Successfully uploaded ${uploadedCount} workout", upload)
+        self.assertIn("showUploadError(requestErrorMessage(error))", upload)
+        self.assertIn("Intervals.icu returned HTTP ${status}${suffix}", JAVASCRIPT)
+        self.assertNotIn("jsonDialog.showModal()", upload)
+        self.assertNotIn("jsonPreview.textContent", upload)
+
+    def test_upload_error_dialog_shows_json_button_only_for_json_responses(self):
+        self.assertIn('id="uploadErrorDialog"', HTML)
+        self.assertIn('id="uploadErrorMessage"', HTML)
+        self.assertIn('id="showUploadErrorJsonButton"', HTML)
+        self.assertIn('type="button" hidden>Show response JSON</button>', HTML)
+        self.assertIn("let hasResponseJson = false;", JAVASCRIPT)
+        self.assertIn("hasResponseJson = true;", JAVASCRIPT)
+        self.assertIn("showUploadErrorJsonButton.hidden = !hasResponseJson;", JAVASCRIPT)
+        self.assertIn("if (!uploadErrorHasJson) return;", JAVASCRIPT)
+        self.assertIn("uploadErrorResponseJson = responseJson;", JAVASCRIPT)
+        self.assertIn('dialogTitle.textContent = "Upload error response";', JAVASCRIPT)
+
+    def test_external_requests_have_a_finite_timeout(self):
+        self.assertIn("const REQUEST_TIMEOUT_MS = 15000;", JAVASCRIPT)
+        self.assertIn("new AbortController()", JAVASCRIPT)
+        self.assertIn("controller.abort()", JAVASCRIPT)
+        self.assertIn("window.clearTimeout(timeoutId)", JAVASCRIPT)
+
+    def test_api_app_has_selection_and_pagination_styles(self):
+        self.assertIn(".pagination", CSS)
+        self.assertIn(".workout-header", CSS)
+        self.assertIn(".workout-selection", CSS)
+        self.assertIn("grid-template-columns:", CSS)
+
+    def test_wwwroot_landing_page_links_to_both_app_versions(self):
+        parser = AppMarkup()
+        parser.feed(LANDING_HTML)
+        links = re.findall(r'<a\b[^>]*href="([^"]+)"', LANDING_HTML)
+        self.assertIn("csvfeed/index.html", links)
+        self.assertIn("apifeed/index.html", links)
+        self.assertIn('aria-label="Choose app version"', LANDING_HTML)
+        self.assertIn("border-radius: 24px", LANDING_HTML)
+
+    def test_both_app_pages_have_back_links_to_landing_page(self):
+        for app_html in (HTML, CSV_HTML):
+            self.assertRegex(app_html, r'<a\b[^>]*class="back-link"[^>]*href="\.\./index\.html"[^>]*>Back</a>')
+
+    def test_api_app_help_link_opens_separate_tab(self):
+        links = markup().links
+        help_link = next(link for link in links if link.get("href") == "help.html")
+        self.assertEqual("_blank", help_link.get("target"))
+        self.assertIn("noopener", help_link.get("rel", ""))
+        self.assertTrue((APP_DIR / help_link["href"]).is_file())
+
+    def test_help_page_explains_keys_and_app_workflow(self):
+        parser = AppMarkup()
+        parser.feed(HELP_HTML)
+        self.assertTrue((APP_DIR / "styles.css").is_file())
+        self.assertIn("https://developers.hevy.com/docs", HELP_HTML)
+        self.assertIn("does not document a self-service key-generation location", HELP_HTML)
+        self.assertIn("Intervals.icu API key", HELP_HTML)
+        self.assertIn("Select all", HELP_HTML)
+        self.assertIn("current page", HELP_HTML)
+        self.assertIn("cross-origin", HELP_HTML)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

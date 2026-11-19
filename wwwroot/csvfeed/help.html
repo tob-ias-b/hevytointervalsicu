@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSV Feed Help · Hevy to intervals.icu</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell help-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">CSV FEED GUIDE</p>
+        <h1>Using the CSV app</h1>
+      </div>
+      <a class="back-link" href="index.html">Back to app</a>
+    </header>
+
+    <article class="panel help-content">
+      <section>
+        <h2>Export your workouts from Hevy</h2>
+        <ol>
+          <li>In the Hevy app, go to <strong>Profile → Settings → Export &amp; Import Data → Export Data</strong>.</li>
+          <li>Choose <strong>Export Workouts</strong>, not Export Measurements.</li>
+          <li>Save or share the workout export to your device. If it arrives in an archive, extract it and choose the workout CSV file.</li>
+        </ol>
+        <p>See Hevy's <a href="https://help.hevyapp.com/hc/en-us/articles/43708290987415-Exporting-Your-Data-from-Hevy" target="_blank" rel="noopener noreferrer">official data export instructions</a> if the menu or export process differs on your device.</p>
+      </section>
+
+      <section>
+        <h2>Convert and review the CSV</h2>
+        <ol>
+          <li>Choose the workout CSV in the <strong>Workout CSV</strong> field.</li>
+          <li>Choose the timezone used to interpret workout start and end times. The browser's timezone is selected by default.</li>
+          <li>Select <strong>Convert CSV</strong>. The app groups exercise rows into workouts and shows a preview.</li>
+          <li>The export needs the columns <code>title</code>, <code>start_time</code>, <code>end_time</code>, and <code>exercise_title</code>. The <code>weight_kg</code> and <code>reps</code> columns are used to calculate lifted volume.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Select and upload workouts</h2>
+        <ol>
+          <li>Select individual workouts using their checkboxes, or use <strong>Select all</strong> to select every converted workout.</li>
+          <li>Enter your Intervals.icu API key in the app. It is used only for the upload request and is not included in the exported activities.</li>
+          <li>Select <strong>Upload selected to intervals.icu</strong>. Only checked workouts are uploaded.</li>
+          <li><strong>Download JSON</strong> saves all converted activities, regardless of checkbox selection, so you can keep or inspect the full conversion.</li>
+        </ol>
+      </section>
+
+      <aside class="help-note">
+        Your CSV is processed in this browser. Review the selected activities before uploading, and keep your Intervals.icu API key private.
+      </aside>
+    </article>
+  </main>
+</body>
+</html>
