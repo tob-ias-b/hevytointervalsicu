@@ -2,7 +2,7 @@
 
 ## Development
 
-The app is plain HTML, CSS, and JavaScript. Open `index.html` in a browser or serve the folder with any static HTTP server.
+The app is plain HTML, CSS, and JavaScript under `wwwroot/csvfeed/` and `wwwroot/apifeed/`. Open the relevant `index.html` in a browser or serve either folder with any static HTTP server.
 
 ## Changes
 

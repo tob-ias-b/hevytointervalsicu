@@ -6,6 +6,7 @@ const apiKey = document.querySelector("#apiKey");
 const convertButton = document.querySelector("#convertButton");
 const downloadButton = document.querySelector("#downloadButton");
 const uploadButton = document.querySelector("#uploadButton");
+const selectAllCheckbox = document.querySelector("#selectAllCheckbox");
 const workoutList = document.querySelector("#workoutList");
 const resultCount = document.querySelector("#resultCount");
 const warnings = document.querySelector("#warnings");
@@ -13,14 +14,71 @@ const statusBadge = document.querySelector("#statusBadge");
 const jsonDialog = document.querySelector("#jsonDialog");
 const jsonPreview = document.querySelector("#jsonPreview");
 const dialogTitle = document.querySelector("#dialogTitle");
+const uploadErrorDialog = document.querySelector("#uploadErrorDialog");
+const uploadErrorMessage = document.querySelector("#uploadErrorMessage");
+const showUploadErrorJsonButton = document.querySelector("#showUploadErrorJsonButton");
 
 let activities = [];
+let selectedActivityIds = new Set();
+let uploadErrorResponseJson = null;
+let uploadErrorHasJson = false;
 
 timezoneInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
 function setStatus(message, type = "") {
   statusBadge.textContent = message;
   statusBadge.className = `status-badge ${type}`.trim();
+}
+
+function showUploadMessage(message, type) {
+  warnings.textContent = message;
+  warnings.className = `warnings ${type}`;
+  warnings.hidden = false;
+}
+
+async function responseError(response) {
+  const text = (await response.text()).trim();
+  let detail = text;
+  let responseJson = null;
+  let hasResponseJson = false;
+  if (text) {
+    try {
+      responseJson = JSON.parse(text);
+      hasResponseJson = true;
+      if (typeof responseJson === "string") detail = responseJson;
+      else if (responseJson && typeof responseJson === "object") {
+        const candidate = responseJson.message || responseJson.error || responseJson.detail;
+        detail = typeof candidate === "string" ? candidate : candidate ? JSON.stringify(candidate) : text;
+      }
+    } catch (error) {
+      detail = text;
+    }
+  }
+  const status = `${response.status}${response.statusText ? ` ${response.statusText}` : ""}`;
+  const suffix = detail ? `: ${detail.slice(0, 400)}` : "";
+  return {
+    message: `Intervals.icu returned HTTP ${status}${suffix}`,
+    responseJson,
+    hasResponseJson
+  };
+}
+
+function showUploadError(message, responseJson = null, hasResponseJson = false) {
+  uploadErrorResponseJson = responseJson;
+  uploadErrorHasJson = hasResponseJson;
+  uploadErrorMessage.textContent = message;
+  showUploadErrorJsonButton.hidden = !hasResponseJson;
+  uploadErrorDialog.showModal();
+}
+
+function uploadRequestErrorMessage(error) {
+  if (error.name === "AbortError") {
+    return "The upload request timed out. Check your connection and try again.";
+  }
+  if (error instanceof TypeError || /failed to fetch|networkerror/i.test(error.message || "")) {
+    return "Could not reach Intervals.icu. Check your connection and whether the API permits browser cross-origin requests.";
+  }
+  return error.message || "Unable to upload activities to Intervals.icu.";
 }
 
 function parseCsv(text) {
@@ -220,12 +278,26 @@ function renderActivities(items) {
 
   if (items.length === 0) {
     workoutList.innerHTML = '<div class="empty">No valid workouts found in this CSV.</div>';
+    updateSelectionControls();
     return;
   }
 
   for (const activity of items) {
     const row = document.createElement("article");
     row.className = "workout-row";
+
+    const selection = document.createElement("label");
+    selection.className = "workout-selection";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = selectedActivityIds.has(activity.id);
+    checkbox.setAttribute("aria-label", `Select ${activity.name}`);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) selectedActivityIds.add(activity.id);
+      else selectedActivityIds.delete(activity.id);
+      updateSelectionControls();
+    });
+    selection.append(checkbox);
 
     const name = document.createElement("div");
     name.innerHTML = `<div class="workout-name"></div><div class="workout-meta">${activity.description.split("\n\n").length} exercise${activity.description.includes("\n\n") ? "s" : ""}</div>`;
@@ -253,9 +325,22 @@ function renderActivities(items) {
       jsonDialog.showModal();
     });
 
-    row.append(name, date, sets, lifted, view);
+    row.append(selection, name, date, sets, lifted, view);
     workoutList.append(row);
   }
+
+  updateSelectionControls();
+}
+
+function updateSelectionControls() {
+  const selectedCount = selectedActivityIds.size;
+  selectAllCheckbox.disabled = activities.length === 0;
+  selectAllCheckbox.checked = activities.length > 0 && selectedCount === activities.length;
+  selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < activities.length;
+  uploadButton.disabled = selectedCount === 0;
+  resultCount.textContent = activities.length > 0
+    ? `${activities.length} workout${activities.length === 1 ? "" : "s"} · ${selectedCount} selected`
+    : "0 workouts";
 }
 
 convertButton.addEventListener("click", async () => {
@@ -276,15 +361,15 @@ convertButton.addEventListener("click", async () => {
     if (missing.length) throw new Error(`Missing required CSV columns: ${missing.join(", ")}`);
 
     activities = await convertRows(rows);
+    selectedActivityIds = new Set();
     renderActivities(activities);
 
     const invalidRows = rows.filter((row) => !row.title || !row.start_time || !row.end_time || !row.exercise_title).length;
     warnings.hidden = invalidRows === 0;
     warnings.textContent = invalidRows ? `${invalidRows} incomplete CSV row(s) were ignored.` : "";
 
-    resultCount.textContent = `${activities.length} workout${activities.length === 1 ? "" : "s"}`;
     downloadButton.disabled = activities.length === 0;
-    uploadButton.disabled = activities.length === 0;
+    updateSelectionControls();
     setStatus("Converted", "success");
   } catch (error) {
     setStatus("Error", "error");
@@ -293,6 +378,13 @@ convertButton.addEventListener("click", async () => {
   } finally {
     convertButton.disabled = false;
   }
+});
+
+selectAllCheckbox.addEventListener("change", () => {
+  selectedActivityIds = selectAllCheckbox.checked
+    ? new Set(activities.map((activity) => activity.id))
+    : new Set();
+  renderActivities(activities);
 });
 
 downloadButton.addEventListener("click", () => {
@@ -309,8 +401,13 @@ uploadButton.addEventListener("click", async () => {
   const key = apiKey.value.trim();
   if (!key) {
     setStatus("API key", "error");
+    showUploadError("Enter your Intervals.icu API key to upload selected workouts.");
     return;
   }
+
+  const selectedActivities = activities.filter((activity) => selectedActivityIds.has(activity.id));
+  if (selectedActivities.length === 0) return;
+  const uploadedCount = selectedActivities.length;
 
   try {
     uploadButton.disabled = true;
@@ -322,25 +419,32 @@ uploadButton.addEventListener("click", async () => {
         "Authorization": `Basic ${btoa(`API_KEY:${key}`)}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(activities)
+      body: JSON.stringify(selectedActivities)
     });
 
-    const text = await response.text();
-    if (!response.ok) throw new Error(text || `Upload failed (${response.status})`);
+    if (!response.ok) {
+      const error = await responseError(response);
+      setStatus("Upload failed", "error");
+      showUploadError(error.message, error.responseJson, error.hasResponseJson);
+      return;
+    }
 
-    let data = text;
-    try { data = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
     setStatus("Uploaded", "success");
-    dialogTitle.textContent = "Upload response";
-    jsonPreview.textContent = data;
-    jsonDialog.showModal();
+    showUploadMessage(`Successfully uploaded ${uploadedCount} workout${uploadedCount === 1 ? "" : "s"} to Intervals.icu.`, "success");
   } catch (error) {
     setStatus("Upload failed", "error");
-    warnings.hidden = false;
-    warnings.textContent = error.message;
+    showUploadError(uploadRequestErrorMessage(error));
   } finally {
-    uploadButton.disabled = false;
+    updateSelectionControls();
   }
 });
 
 document.querySelector("#closeDialog").addEventListener("click", () => jsonDialog.close());
+document.querySelector("#closeUploadErrorDialog").addEventListener("click", () => uploadErrorDialog.close());
+showUploadErrorJsonButton.addEventListener("click", () => {
+  if (!uploadErrorHasJson) return;
+  uploadErrorDialog.close();
+  dialogTitle.textContent = "Upload error response";
+  jsonPreview.textContent = JSON.stringify(uploadErrorResponseJson, null, 2);
+  jsonDialog.showModal();
+});

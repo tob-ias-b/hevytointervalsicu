@@ -13,7 +13,11 @@
         <p class="eyebrow">LOCAL CONVERTER</p>
         <h1>Hevy to intervals.icu</h1>
       </div>
-      <span id="statusBadge" class="status-badge">Ready</span>
+      <div class="topbar-actions">
+        <a class="back-link" href="../index.html">Back</a>
+        <a class="back-link" href="help.html" target="_blank" rel="noopener noreferrer">Help</a>
+        <span id="statusBadge" class="status-badge">Ready</span>
+      </div>
     </header>
 
     <section class="grid">
@@ -53,11 +57,22 @@
           </div>
           <div class="actions">
             <button id="downloadButton" type="button" disabled>Download JSON</button>
-            <button id="uploadButton" class="primary" type="button" disabled>Upload to intervals.icu</button>
+            <button id="uploadButton" class="primary" type="button" disabled>Upload selected to intervals.icu</button>
           </div>
         </div>
 
         <div id="warnings" class="warnings" hidden></div>
+        <div class="workout-header workout-row">
+          <label class="select-all">
+            <input id="selectAllCheckbox" type="checkbox" disabled>
+            <span>Select all</span>
+          </label>
+          <span>Workout</span>
+          <span class="date">Date</span>
+          <span class="sets">Exercises / sets</span>
+          <span class="workout-number">Volume</span>
+          <span></span>
+        </div>
         <div id="workoutList" class="workout-list">
           <div class="empty">Choose a Hevy CSV to generate a preview.</div>
         </div>
@@ -71,6 +86,17 @@
       <button id="closeDialog" type="button" aria-label="Close">×</button>
     </div>
     <pre id="jsonPreview"></pre>
+  </dialog>
+
+  <dialog id="uploadErrorDialog">
+    <div class="dialog-header">
+      <h2>Upload failed</h2>
+      <button id="closeUploadErrorDialog" type="button" aria-label="Close">×</button>
+    </div>
+    <p id="uploadErrorMessage" role="alert"></p>
+    <div class="dialog-actions">
+      <button id="showUploadErrorJsonButton" type="button" hidden>Show response JSON</button>
+    </div>
   </dialog>
 
   <script src="app.js"></script>

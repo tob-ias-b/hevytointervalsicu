@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hevy to intervals.icu</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">LOCAL CONVERTER</p>
+        <h1>Hevy to intervals.icu</h1>
+      </div>
+      <div class="topbar-actions">
+        <a class="back-link" href="../index.html">Back</a>
+        <a class="back-link" href="help.html" target="_blank" rel="noopener noreferrer">Help</a>
+        <span id="statusBadge" class="status-badge">Ready</span>
+      </div>
+    </header>
+
+    <section class="grid">
+      <aside class="panel settings">
+        <label class="field">
+          <span>Timezone</span>
+          <input id="timezone" type="text" list="timezoneList" placeholder="Browser timezone">
+          <datalist id="timezoneList">
+            <option value="Europe/London"></option>
+            <option value="Europe/Paris"></option>
+            <option value="America/New_York"></option>
+            <option value="America/Los_Angeles"></option>
+            <option value="UTC"></option>
+          </datalist>
+        </label>
+
+        <h2>Hevy</h2>
+        <label class="field">
+          <span>Hevy API key</span>
+          <input id="hevyApiKey" type="password" autocomplete="current-password" placeholder="Stored only in this tab">
+        </label>
+
+        <h2>Intervals.icu</h2>
+        <label class="field">
+          <span>Intervals.icu API key</span>
+          <input id="intervalsApiKey" type="password" autocomplete="current-password" placeholder="Stored only in this tab">
+        </label>
+
+        <button id="fetchButton" class="primary" type="button">Fetch</button>
+      </aside>
+
+      <section class="panel results">
+        <div class="results-header">
+          <div>
+            <p class="eyebrow">HEVY WORKOUTS</p>
+            <h2 id="resultCount">No workouts loaded</h2>
+          </div>
+          <div class="actions">
+            <button id="downloadButton" type="button" disabled>Download JSON</button>
+            <button id="uploadButton" class="primary" type="button" disabled>Upload selected to intervals.icu</button>
+          </div>
+        </div>
+
+        <div id="warnings" class="warnings" hidden></div>
+        <nav class="pagination" aria-label="Workout pages">
+          <button id="firstPageButton" type="button" disabled>First</button>
+          <button id="previousPageButton" type="button" disabled>Previous</button>
+          <span id="pageStatus" aria-live="polite">Page 0 of 0</span>
+          <button id="nextPageButton" type="button" disabled>Next</button>
+          <button id="lastPageButton" type="button" disabled>Last</button>
+        </nav>
+        <div class="workout-header workout-row">
+          <label class="select-all">
+            <input id="selectAllCheckbox" type="checkbox" disabled>
+            <span>Select all</span>
+          </label>
+          <span>Workout</span>
+          <span class="date">Date</span>
+          <span class="sets">Exercises / sets</span>
+          <span class="workout-number">Volume</span>
+        </div>
+        <div id="workoutList" class="workout-list">
+          <div class="empty">Enter your Hevy API key and select Fetch to load workouts.</div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="jsonDialog">
+    <div class="dialog-header">
+      <h2 id="dialogTitle">Activity JSON</h2>
+      <button id="closeDialog" type="button" aria-label="Close">×</button>
+    </div>
+    <pre id="jsonPreview"></pre>
+  </dialog>
+
+  <dialog id="uploadErrorDialog">
+    <div class="dialog-header">
+      <h2>Upload failed</h2>
+      <button id="closeUploadErrorDialog" type="button" aria-label="Close">×</button>
+    </div>
+    <p id="uploadErrorMessage" role="alert"></p>
+    <div class="dialog-actions">
+      <button id="showUploadErrorJsonButton" type="button" hidden>Show response JSON</button>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -16,15 +16,33 @@ The app does not upload FIT, TCX, GPX, or other activity files.
 
 ## Run locally
 
-Open `index.html` in a modern browser, or serve the folder with a static HTTP server:
+Open `wwwroot/index.html` in a modern browser, or serve the web root with a static HTTP server:
 
 ```sh
-python3 -m http.server 4173
+python3 -m http.server 4173 --directory wwwroot
 ```
 
-Then open `http://127.0.0.1:4173`.
+Then open `http://127.0.0.1:4173` and choose the CSV or API version.
 
-Place a real export in `data/`. That directory is ignored by Git.
+Select a real export from your computer in the app.
+
+## API version
+
+The API-based alternative is under `wwwroot/apifeed/`. Serve that folder with a static HTTP server and open the server URL:
+
+```sh
+python3 -m http.server 4174 --directory wwwroot/apifeed
+```
+
+Enter a Hevy API key to fetch workouts and an Intervals.icu API key to upload selected workouts. Workouts are fetched 10 at a time; selections apply to the current page only. The browser must be able to make cross-origin requests to both APIs.
+
+Run the API-version checks with:
+
+```sh
+./tests/apifeed/test.sh
+```
+
+The script uses Node for an optional JavaScript syntax check when available, then runs the API app contract tests with Python 3. These checks do not contact either API.
 
 ## CSV format
 
@@ -38,6 +56,14 @@ The source CSV must contain:
 - `reps`
 
 A synthetic example is included at `examples/hevy-export.csv`.
+
+Run the CSV-version checks with:
+
+```sh
+./tests/csvfeed/test.sh
+```
+
+The script uses Node for an optional JavaScript syntax check when available, then runs the CSV app contract tests with Python 3. These checks do not contact Intervals.icu.
 
 ## Conversion behavior
 
