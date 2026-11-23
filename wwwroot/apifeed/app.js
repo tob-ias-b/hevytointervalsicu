@@ -158,15 +158,6 @@ function formatLocalIso(date, timeZone) {
   return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}`;
 }
 
-async function sha256(text) {
-  if (!globalThis.crypto?.subtle) {
-    throw new Error("Secure browser cryptography is unavailable. Open this app over HTTPS or localhost.");
-  }
-  const bytes = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 function setDescription(set) {
   const weight = numberValue(set.weight_kg);
   const reps = numberValue(set.reps);
@@ -181,7 +172,7 @@ function setDescription(set) {
   return details.join(" × ") || "Set";
 }
 
-async function convertWorkout(workout) {
+function convertWorkout(workout) {
   const start = validDate(workout.start_time, "workout start time");
   const end = validDate(workout.end_time, "workout end time");
   const timeZone = timezoneInput.value.trim() || "UTC";
@@ -206,11 +197,9 @@ async function convertWorkout(workout) {
   }
 
   const elapsedSeconds = Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000));
-  const id = await sha256(`hevy:${workout.id}`);
   return {
     activity: {
-      id,
-      external_id: id,
+      external_id: workout.id,
       name: workout.title || "Hevy workout",
       description: description.join("\n\n"),
       start_date_local: formatLocalIso(start, timeZone),
@@ -392,12 +381,12 @@ async function loadPage(requestedPage) {
       throw new Error("Hevy returned an unexpected paginated workouts response.");
     }
 
-    const activities = await Promise.all(data.workouts.map(async (workout) => {
+    const activities = data.workouts.map((workout) => {
       if (!workout || typeof workout.id !== "string" || !workout.id) {
         throw new Error("Hevy returned a workout without an ID.");
       }
-      return [workout.id, await convertWorkout(workout)];
-    }));
+      return [workout.id, convertWorkout(workout)];
+    });
 
     currentWorkouts = data.workouts;
     currentActivities = new Map(activities);

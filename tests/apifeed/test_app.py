@@ -90,6 +90,14 @@ class ApiAppContractTests(unittest.TestCase):
         self.assertIn("Number.isInteger(data.page_count)", JAVASCRIPT)
         self.assertIn("Page ${currentPage} of ${pageCount}", JAVASCRIPT)
 
+    def test_api_feed_uses_source_id_as_external_id_without_setting_intervals_id(self):
+        convert = JAVASCRIPT.split("function convertWorkout", 1)[1].split(
+            "async function fetchJson", 1
+        )[0]
+        self.assertIn("external_id: workout.id", convert)
+        self.assertNotRegex(convert, re.compile(r"^\s*id\s*:", re.M))
+        self.assertNotIn("sha256", JAVASCRIPT)
+
     def test_all_four_page_controls_have_boundary_logic(self):
         for element_id in ("firstPageButton", "previousPageButton", "nextPageButton", "lastPageButton"):
             self.assertIn(f'querySelector("#{element_id}")', JAVASCRIPT)
