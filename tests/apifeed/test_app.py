@@ -103,12 +103,20 @@ class ApiAppContractTests(unittest.TestCase):
         self.assertIn("body: JSON.stringify(activities)", JAVASCRIPT)
         self.assertIn("uploadButton.disabled = selectedCount === 0 || busy;", JAVASCRIPT)
 
+    def test_action_menu_updates_button_and_offers_upload_or_delete(self):
+        self.assertIn('<select id="actionSelect">', HTML)
+        self.assertIn('<option value="upload">Upload</option>', HTML)
+        self.assertIn('<option value="delete">Delete</option>', HTML)
+        self.assertIn('actionSelect.addEventListener("change", updateControls);', JAVASCRIPT)
+        self.assertIn('"Delete selected from intervals.icu"', JAVASCRIPT)
+        self.assertIn('"Upload selected to intervals.icu"', JAVASCRIPT)
+
     def test_upload_reports_count_or_actionable_failure_without_response_json(self):
         upload = JAVASCRIPT.split("async function uploadSelectedActivities()", 1)[1].split(
             'fetchButton.addEventListener("click"', 1
         )[0]
         self.assertIn("Successfully uploaded ${uploadedCount} workout", upload)
-        self.assertIn("showUploadError(requestErrorMessage(error))", upload)
+        self.assertIn('showActionError("upload", actionRequestErrorMessage(error))', upload)
         self.assertIn("Intervals.icu returned HTTP ${status}${suffix}", JAVASCRIPT)
         self.assertNotIn("jsonDialog.showModal()", upload)
         self.assertNotIn("jsonPreview.textContent", upload)
@@ -123,7 +131,28 @@ class ApiAppContractTests(unittest.TestCase):
         self.assertIn("showUploadErrorJsonButton.hidden = !hasResponseJson;", JAVASCRIPT)
         self.assertIn("if (!uploadErrorHasJson) return;", JAVASCRIPT)
         self.assertIn("uploadErrorResponseJson = responseJson;", JAVASCRIPT)
-        self.assertIn('dialogTitle.textContent = "Upload error response";', JAVASCRIPT)
+        self.assertIn('dialogTitle.textContent = `${uploadErrorAction === "delete" ? "Delete" : "Upload"} error response`;', JAVASCRIPT)
+
+    def test_delete_uses_current_page_selection_and_safe_external_id_lookup(self):
+        delete = JAVASCRIPT.split("async function deleteSelectedActivities", 1)[1].split(
+            "async function uploadSelectedActivities()", 1
+        )[0]
+        self.assertIn("window.confirm(", delete)
+        self.assertIn("currentActivities.get(workout.id).activity", delete)
+        self.assertIn("findMatchingIntervalsActivities(activities, key)", delete)
+        self.assertIn('fields: "id,external_id"', JAVASCRIPT)
+        self.assertIn("candidate.external_id === activity.external_id", JAVASCRIPT)
+        self.assertIn("found.length > 1", JAVASCRIPT)
+        self.assertIn('{ method: "DELETE" }', delete)
+        self.assertIn("selectedWorkoutIds = new Set([...selectedWorkoutIds].filter((id) => !selectedIds.has(id)));", delete)
+        self.assertIn('showActionError("delete"', delete)
+        self.assertNotIn("currentWorkouts = currentWorkouts.filter", delete)
+        no_match = delete.split("if (matches.length === 0)", 1)[1].split("const failures", 1)[0]
+        self.assertIn('setStatus("Delete complete", "success")', no_match)
+        self.assertIn('showWarning("Delete complete. Deleted 0 workouts', no_match)
+        self.assertNotIn('"error"', no_match)
+        self.assertNotIn("missingCount", delete)
+        self.assertNotIn("no matching Intervals.icu activity", delete)
 
     def test_external_requests_have_a_finite_timeout(self):
         self.assertIn("const REQUEST_TIMEOUT_MS = 15000;", JAVASCRIPT)
@@ -167,6 +196,7 @@ class ApiAppContractTests(unittest.TestCase):
         self.assertIn("Select all", HELP_HTML)
         self.assertIn("current page", HELP_HTML)
         self.assertIn("cross-origin", HELP_HTML)
+        self.assertIn("cannot be undone", HELP_HTML)
 
 
 if __name__ == "__main__":

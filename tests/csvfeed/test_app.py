@@ -51,6 +51,14 @@ class CsvAppSelectionTests(unittest.TestCase):
         self.assertIn('checkbox.type = "checkbox";', JAVASCRIPT)
         self.assertIn('checkbox.setAttribute("aria-label", `Select ${activity.name}`);', JAVASCRIPT)
 
+    def test_action_menu_updates_button_and_offers_upload_or_delete(self):
+        self.assertIn('<select id="actionSelect">', HTML)
+        self.assertIn('<option value="upload">Upload</option>', HTML)
+        self.assertIn('<option value="delete">Delete</option>', HTML)
+        self.assertIn('actionSelect.addEventListener("change", updateSelectionControls);', JAVASCRIPT)
+        self.assertIn('"Delete selected from intervals.icu"', JAVASCRIPT)
+        self.assertIn('"Upload selected to intervals.icu"', JAVASCRIPT)
+
     def test_selection_state_updates_header_count_and_upload_availability(self):
         self.assertIn("let selectedActivityIds = new Set();", JAVASCRIPT)
         self.assertIn("selectedActivityIds.add(activity.id)", JAVASCRIPT)
@@ -85,7 +93,7 @@ class CsvAppSelectionTests(unittest.TestCase):
             'document.querySelector("#closeDialog")', 1
         )[0]
         self.assertIn("Successfully uploaded ${uploadedCount} workout", upload)
-        self.assertIn("showUploadError(uploadRequestErrorMessage(error))", upload)
+        self.assertIn('showActionError("upload", actionRequestErrorMessage(error))', upload)
         self.assertIn("Intervals.icu returned HTTP ${status}${suffix}", JAVASCRIPT)
         self.assertNotIn("jsonDialog.showModal()", upload)
         self.assertNotIn("jsonPreview.textContent", upload)
@@ -100,7 +108,27 @@ class CsvAppSelectionTests(unittest.TestCase):
         self.assertIn("showUploadErrorJsonButton.hidden = !hasResponseJson;", JAVASCRIPT)
         self.assertIn("if (!uploadErrorHasJson) return;", JAVASCRIPT)
         self.assertIn("uploadErrorResponseJson = responseJson;", JAVASCRIPT)
-        self.assertIn('dialogTitle.textContent = "Upload error response";', JAVASCRIPT)
+        self.assertIn('dialogTitle.textContent = `${uploadErrorAction === "delete" ? "Delete" : "Upload"} error response`;', JAVASCRIPT)
+
+    def test_delete_uses_selected_workouts_and_safe_external_id_lookup(self):
+        delete = JAVASCRIPT.split("async function deleteSelectedActivities", 1)[1].split(
+            'uploadButton.addEventListener("click"', 1
+        )[0]
+        self.assertIn("window.confirm(", delete)
+        self.assertIn("findMatchingIntervalsActivities(selectedActivities, key)", delete)
+        self.assertIn('fields: "id,external_id"', JAVASCRIPT)
+        self.assertIn("candidate.external_id === activity.external_id", JAVASCRIPT)
+        self.assertIn("found.length > 1", JAVASCRIPT)
+        self.assertIn('{ method: "DELETE" }', delete)
+        self.assertIn("activities.filter((activity) => selectedActivityIds.has(activity.id))", JAVASCRIPT)
+        self.assertIn('showActionError("delete"', delete)
+        self.assertNotIn("activities = activities.filter", delete)
+        no_match = delete.split("if (matches.length === 0)", 1)[1].split("const failures", 1)[0]
+        self.assertIn('setStatus("Delete complete", "success")', no_match)
+        self.assertIn('showUploadMessage("Delete complete. Deleted 0 workouts', no_match)
+        self.assertNotIn('"error"', no_match)
+        self.assertNotIn("missingCount", delete)
+        self.assertNotIn("no matching Intervals.icu activity", delete)
 
     def test_selection_header_and_rows_share_responsive_grid(self):
         self.assertIn(".workout-header", CSS)
@@ -121,7 +149,9 @@ class CsvAppSelectionTests(unittest.TestCase):
         self.assertIn("Export Workouts", HELP_HTML)
         for field in ("title", "start_time", "end_time", "exercise_title"):
             self.assertIn(f"<code>{field}</code>", HELP_HTML)
-        self.assertIn("Upload selected to intervals.icu", HELP_HTML)
+        self.assertIn("Action", HELP_HTML)
+        self.assertIn("Delete", HELP_HTML)
+        self.assertIn("cannot be undone", HELP_HTML)
         self.assertIn("Download JSON", HELP_HTML)
 
 

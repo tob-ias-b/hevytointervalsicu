@@ -46,6 +46,14 @@
           <input id="intervalsApiKey" type="password" autocomplete="current-password" placeholder="Stored only in this tab">
         </label>
 
+        <label class="field">
+          <span>Action</span>
+          <select id="actionSelect">
+            <option value="upload">Upload</option>
+            <option value="delete">Delete</option>
+          </select>
+        </label>
+
         <button id="fetchButton" class="primary" type="button">Fetch</button>
       </aside>
 
@@ -96,7 +104,7 @@
 
   <dialog id="uploadErrorDialog">
     <div class="dialog-header">
-      <h2>Upload failed</h2>
+      <h2 id="uploadErrorTitle">Action failed</h2>
       <button id="closeUploadErrorDialog" type="button" aria-label="Close">×</button>
     </div>
     <p id="uploadErrorMessage" role="alert"></p>
