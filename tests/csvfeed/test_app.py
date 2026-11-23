@@ -42,6 +42,14 @@ class CsvAppSelectionTests(unittest.TestCase):
         for asset in parser.assets:
             self.assertTrue((APP_DIR / asset).is_file(), asset)
 
+    def test_feed_notice_is_between_header_and_app_grid(self):
+        notice = (
+            "CSV Feed and API Feed use different activity id's and so will appear as different workouts if both are used."
+        )
+        self.assertIn(notice, HTML)
+        self.assertRegex(HTML, re.compile(r"</header>\s*<aside class=\"feed-notice\" role=\"note\">.*?</aside>\s*<section class=\"grid\">", re.S))
+        self.assertIn(".feed-notice", CSS)
+
     def test_workout_rows_have_individual_checkboxes_and_select_all(self):
         self.assertIn('id="selectAllCheckbox"', HTML)
         self.assertIn("Select all", HTML)
