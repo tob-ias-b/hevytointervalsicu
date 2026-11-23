@@ -3,6 +3,7 @@
 const csvFile = document.querySelector("#csvFile");
 const timezoneInput = document.querySelector("#timezone");
 const apiKey = document.querySelector("#apiKey");
+const actionSelect = document.querySelector("#actionSelect");
 const convertButton = document.querySelector("#convertButton");
 const downloadButton = document.querySelector("#downloadButton");
 const uploadButton = document.querySelector("#uploadButton");
@@ -16,12 +17,14 @@ const jsonPreview = document.querySelector("#jsonPreview");
 const dialogTitle = document.querySelector("#dialogTitle");
 const uploadErrorDialog = document.querySelector("#uploadErrorDialog");
 const uploadErrorMessage = document.querySelector("#uploadErrorMessage");
+const uploadErrorTitle = document.querySelector("#uploadErrorTitle");
 const showUploadErrorJsonButton = document.querySelector("#showUploadErrorJsonButton");
 
 let activities = [];
 let selectedActivityIds = new Set();
 let uploadErrorResponseJson = null;
 let uploadErrorHasJson = false;
+let uploadErrorAction = "upload";
 
 timezoneInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
@@ -36,23 +39,13 @@ function showUploadMessage(message, type) {
   warnings.hidden = false;
 }
 
-async function responseError(response) {
-  const text = (await response.text()).trim();
+function responseError(response, text, responseJson, hasResponseJson) {
   let detail = text;
-  let responseJson = null;
-  let hasResponseJson = false;
-  if (text) {
-    try {
-      responseJson = JSON.parse(text);
-      hasResponseJson = true;
-      if (typeof responseJson === "string") detail = responseJson;
-      else if (responseJson && typeof responseJson === "object") {
-        const candidate = responseJson.message || responseJson.error || responseJson.detail;
-        detail = typeof candidate === "string" ? candidate : candidate ? JSON.stringify(candidate) : text;
-      }
-    } catch (error) {
-      detail = text;
-    }
+  if (typeof responseJson === "string") {
+    detail = responseJson;
+  } else if (responseJson && typeof responseJson === "object") {
+    const candidate = responseJson.message || responseJson.error || responseJson.detail;
+    detail = typeof candidate === "string" ? candidate : candidate ? JSON.stringify(candidate) : text;
   }
   const status = `${response.status}${response.statusText ? ` ${response.statusText}` : ""}`;
   const suffix = detail ? `: ${detail.slice(0, 400)}` : "";
@@ -63,22 +56,61 @@ async function responseError(response) {
   };
 }
 
-function showUploadError(message, responseJson = null, hasResponseJson = false) {
+async function intervalsRequest(url, key, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Authorization": `Basic ${btoa(`API_KEY:${key}`)}`,
+        ...options.headers
+      },
+      signal: controller.signal
+    });
+    const text = (await response.text()).trim();
+    let responseJson = null;
+    let hasResponseJson = false;
+    if (text) {
+      try {
+        responseJson = JSON.parse(text);
+        hasResponseJson = true;
+      } catch (error) {}
+    }
+    return {
+      response,
+      text,
+      responseJson,
+      hasResponseJson
+    };
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("The request timed out. Check your connection and try again.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+function showActionError(action, message, responseJson = null, hasResponseJson = false) {
+  uploadErrorAction = action;
   uploadErrorResponseJson = responseJson;
   uploadErrorHasJson = hasResponseJson;
+  uploadErrorTitle.textContent = `${action === "delete" ? "Delete" : "Upload"} failed`;
   uploadErrorMessage.textContent = message;
   showUploadErrorJsonButton.hidden = !hasResponseJson;
   uploadErrorDialog.showModal();
 }
 
-function uploadRequestErrorMessage(error) {
+function actionRequestErrorMessage(error) {
   if (error.name === "AbortError") {
-    return "The upload request timed out. Check your connection and try again.";
+    return "The request timed out. Check your connection and try again.";
   }
   if (error instanceof TypeError || /failed to fetch|networkerror/i.test(error.message || "")) {
     return "Could not reach Intervals.icu. Check your connection and whether the API permits browser cross-origin requests.";
   }
-  return error.message || "Unable to upload activities to Intervals.icu.";
+  return error.message || "Unable to complete the Intervals.icu request.";
 }
 
 function parseCsv(text) {
@@ -338,6 +370,9 @@ function updateSelectionControls() {
   selectAllCheckbox.checked = activities.length > 0 && selectedCount === activities.length;
   selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < activities.length;
   uploadButton.disabled = selectedCount === 0;
+  uploadButton.textContent = actionSelect.value === "delete"
+    ? "Delete selected from intervals.icu"
+    : "Upload selected to intervals.icu";
   resultCount.textContent = activities.length > 0
     ? `${activities.length} workout${activities.length === 1 ? "" : "s"} · ${selectedCount} selected`
     : "0 workouts";
@@ -397,35 +432,178 @@ downloadButton.addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
+function dateAfter(dateString) {
+  const date = new Date(`${dateString}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+async function findMatchingIntervalsActivities(selectedActivities, key) {
+  const selectedByExternalId = new Map();
+  const dates = [];
+  for (const activity of selectedActivities) {
+    const date = activity.start_date_local.slice(0, 10);
+    if (!activity.external_id || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error(`Cannot safely identify the Intervals.icu activity for "${activity.name}".`);
+    }
+    if (selectedByExternalId.has(activity.external_id)) {
+      throw new Error(`More than one selected workout has the same external ID. No workouts were deleted.`);
+    }
+    selectedByExternalId.set(activity.external_id, activity);
+    dates.push(date);
+  }
+
+  dates.sort();
+  const oldest = dates[0];
+  const newest = dateAfter(dates[dates.length - 1]);
+  const query = new URLSearchParams({
+    oldest: `${oldest}T00:00:00`,
+    newest: `${newest}T00:00:00`,
+    limit: "10000",
+    fields: "id,external_id"
+  });
+  const result = await intervalsRequest(
+    `https://intervals.icu/api/v1/athlete/0/activities?${query}`,
+    key
+  );
+  if (!result.response.ok) {
+    return { error: responseError(result.response, result.text, result.responseJson, result.hasResponseJson) };
+  }
+  if (!Array.isArray(result.responseJson)) {
+    throw new Error("Intervals.icu returned an unexpected activity-list response while resolving selected workouts.");
+  }
+  if (result.responseJson.length >= 10000) {
+    throw new Error(`Intervals.icu returned 10,000 or more activities from ${oldest} through ${dates[dates.length - 1]}; refusing to delete without an unambiguous lookup.`);
+  }
+
+  const matchesByExternalId = new Map();
+  for (const candidate of result.responseJson) {
+    if (!selectedByExternalId.has(candidate.external_id)) continue;
+    if (!matchesByExternalId.has(candidate.external_id)) matchesByExternalId.set(candidate.external_id, []);
+    matchesByExternalId.get(candidate.external_id).push(candidate);
+  }
+
+  const matches = [];
+  for (const activity of selectedActivities) {
+    const found = matchesByExternalId.get(activity.external_id) || [];
+    if (found.length > 1) {
+      throw new Error(`More than one Intervals.icu activity matches "${activity.name}". No workouts were deleted.`);
+    }
+    if (found.length === 1) {
+      if (typeof found[0].id !== "string" || !found[0].id) {
+        throw new Error(`The matching Intervals.icu activity for "${activity.name}" has no usable ID.`);
+      }
+      matches.push({ sourceActivity: activity, intervalsId: found[0].id });
+    }
+  }
+  return { matches };
+}
+
+async function deleteSelectedActivities(selectedActivities, key) {
+  const count = selectedActivities.length;
+  if (!window.confirm(`Permanently delete ${count} selected workout${count === 1 ? "" : "s"} from Intervals.icu? This cannot be undone.`)) {
+    return;
+  }
+
+  uploadButton.disabled = true;
+  actionSelect.disabled = true;
+  setStatus("Finding activities");
+  showUploadMessage("", "");
+  const deleted = [];
+  try {
+    const lookup = await findMatchingIntervalsActivities(selectedActivities, key);
+    if (lookup.error) {
+      setStatus("Delete failed", "error");
+      showActionError("delete", lookup.error.message, lookup.error.responseJson, lookup.error.hasResponseJson);
+      return;
+    }
+
+    const matches = lookup.matches;
+    if (matches.length === 0) {
+      for (const activity of selectedActivities) selectedActivityIds.delete(activity.id);
+      updateSelectionControls();
+      setStatus("Delete complete", "success");
+      showUploadMessage("Delete complete. Deleted 0 workouts from Intervals.icu.", "success");
+      return;
+    }
+
+    const failures = [];
+    for (let index = 0; index < matches.length; index += 1) {
+      const match = matches[index];
+      setStatus(`Deleting ${index + 1}/${matches.length}`);
+      try {
+        const result = await intervalsRequest(
+          `https://intervals.icu/api/v1/activity/${encodeURIComponent(match.intervalsId)}`,
+          key,
+          { method: "DELETE" }
+        );
+        if (!result.response.ok) {
+          failures.push(responseError(result.response, result.text, result.responseJson, result.hasResponseJson));
+        } else {
+          deleted.push(match.sourceActivity);
+        }
+      } catch (error) {
+        failures.push({
+          message: actionRequestErrorMessage(error),
+          responseJson: null,
+          hasResponseJson: false
+        });
+      }
+    }
+
+    for (const activity of selectedActivities) selectedActivityIds.delete(activity.id);
+    updateSelectionControls();
+
+    if (failures.length > 0) {
+      const message = `Deleted ${deleted.length} matching workout${deleted.length === 1 ? "" : "s"}. ${failures.length} deletion${failures.length === 1 ? "" : "s"} failed. ${failures[0].message}`;
+      setStatus("Delete failed", "error");
+      showActionError("delete", message, failures[0].responseJson, failures[0].hasResponseJson);
+      return;
+    }
+
+    setStatus("Deleted", "success");
+    showUploadMessage(`Deleted ${deleted.length} workout${deleted.length === 1 ? "" : "s"} from Intervals.icu.`, "success");
+  } catch (error) {
+    setStatus("Delete failed", "error");
+    showActionError("delete", actionRequestErrorMessage(error));
+  } finally {
+    actionSelect.disabled = false;
+    updateSelectionControls();
+  }
+}
+
 uploadButton.addEventListener("click", async () => {
   const key = apiKey.value.trim();
+  const action = actionSelect.value;
   if (!key) {
     setStatus("API key", "error");
-    showUploadError("Enter your Intervals.icu API key to upload selected workouts.");
+    showActionError(action, `Enter your Intervals.icu API key to ${action} selected workouts.`);
     return;
   }
 
   const selectedActivities = activities.filter((activity) => selectedActivityIds.has(activity.id));
   if (selectedActivities.length === 0) return;
+  if (action === "delete") {
+    await deleteSelectedActivities(selectedActivities, key);
+    return;
+  }
   const uploadedCount = selectedActivities.length;
 
   try {
     uploadButton.disabled = true;
+    actionSelect.disabled = true;
     setStatus("Uploading");
 
-    const response = await fetch("https://intervals.icu/api/v1/athlete/0/activities/manual/bulk", {
+    const result = await intervalsRequest("https://intervals.icu/api/v1/athlete/0/activities/manual/bulk", key, {
       method: "POST",
-      headers: {
-        "Authorization": `Basic ${btoa(`API_KEY:${key}`)}`,
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(selectedActivities)
     });
 
-    if (!response.ok) {
-      const error = await responseError(response);
+    if (!result.response.ok) {
+      const error = responseError(result.response, result.text, result.responseJson, result.hasResponseJson);
       setStatus("Upload failed", "error");
-      showUploadError(error.message, error.responseJson, error.hasResponseJson);
+      showActionError("upload", error.message, error.responseJson, error.hasResponseJson);
       return;
     }
 
@@ -433,18 +611,21 @@ uploadButton.addEventListener("click", async () => {
     showUploadMessage(`Successfully uploaded ${uploadedCount} workout${uploadedCount === 1 ? "" : "s"} to Intervals.icu.`, "success");
   } catch (error) {
     setStatus("Upload failed", "error");
-    showUploadError(uploadRequestErrorMessage(error));
+    showActionError("upload", actionRequestErrorMessage(error));
   } finally {
+    actionSelect.disabled = false;
     updateSelectionControls();
   }
 });
+
+actionSelect.addEventListener("change", updateSelectionControls);
 
 document.querySelector("#closeDialog").addEventListener("click", () => jsonDialog.close());
 document.querySelector("#closeUploadErrorDialog").addEventListener("click", () => uploadErrorDialog.close());
 showUploadErrorJsonButton.addEventListener("click", () => {
   if (!uploadErrorHasJson) return;
   uploadErrorDialog.close();
-  dialogTitle.textContent = "Upload error response";
+  dialogTitle.textContent = `${uploadErrorAction === "delete" ? "Delete" : "Upload"} error response`;
   jsonPreview.textContent = JSON.stringify(uploadErrorResponseJson, null, 2);
   jsonDialog.showModal();
 });

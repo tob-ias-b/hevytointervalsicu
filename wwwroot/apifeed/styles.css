@@ -133,6 +133,7 @@ button.primary { border-color: var(--green); background: var(--green); color: #f
 button.primary:hover { background: var(--green-dark); }
 button:disabled { cursor: not-allowed; opacity: 0.45; }
 .settings > button { width: 100%; margin-top: 4px; }
+.settings select { width: 100%; }
 
 .results { min-height: 560px; padding: 18px; }
 .results-header { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
