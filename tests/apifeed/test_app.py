@@ -63,6 +63,14 @@ class ApiAppContractTests(unittest.TestCase):
         self.assertIn("Hevy API key", HTML)
         self.assertIn("Intervals.icu API key", HTML)
 
+    def test_feed_notice_is_between_header_and_app_grid(self):
+        notice = (
+            "CSV Feed and API Feed use different activity id's and so will appear as different workouts if both are used."
+        )
+        self.assertIn(notice, HTML)
+        self.assertRegex(HTML, re.compile(r"</header>\s*<aside class=\"feed-notice\" role=\"note\">.*?</aside>\s*<section class=\"grid\">", re.S))
+        self.assertIn(".feed-notice", CSS)
+
     def test_csv_source_is_absent_from_api_version(self):
         self.assertNotIn('type="file"', HTML)
         self.assertNotIn("csvFile", JAVASCRIPT)
@@ -186,7 +194,9 @@ class ApiAppContractTests(unittest.TestCase):
         self.assertIn("csvfeed/index.html", links)
         self.assertIn("apifeed/index.html", links)
         self.assertIn('aria-label="Choose app version"', LANDING_HTML)
-        self.assertIn("border-radius: 24px", LANDING_HTML)
+        self.assertIn("border-radius: 6px", LANDING_HTML)
+        self.assertIn('"Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif', LANDING_HTML)
+        self.assertNotIn("Georgia, serif", LANDING_HTML)
 
     def test_both_app_pages_have_back_links_to_landing_page(self):
         for app_html in (HTML, CSV_HTML):

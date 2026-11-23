@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f7f8f4">
+  <meta name="theme-color" content="#ffffff">
   <title>Hevy to intervals.icu</title>
   <style>
     :root {
       color-scheme: light;
-      font-family: "Aptos", "Segoe UI", sans-serif;
-      color: #1d211c;
-      background: #f7f8f4;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+      color: #1f2328;
+      background: #ffffff;
     }
 
     * { box-sizing: border-box; }
@@ -22,15 +22,13 @@
       margin: 0;
       padding: 32px 20px;
       place-items: center;
-      background:
-        linear-gradient(135deg, rgba(47, 107, 69, 0.06) 25%, transparent 25%) 0 0 / 24px 24px,
-        #f7f8f4;
+      background: #ffffff;
     }
 
     main { width: min(820px, 100%); }
     .eyebrow {
       margin: 0 0 8px;
-      color: #2f6b45;
+      color: #656d76;
       font-size: 12px;
       font-weight: 800;
       letter-spacing: 1.5px;
@@ -39,14 +37,14 @@
 
     h1 {
       margin: 0;
-      font-family: Georgia, serif;
-      font-size: clamp(32px, 7vw, 52px);
+      font-size: clamp(32px, 7vw, 44px);
+      letter-spacing: -0.03em;
       text-align: center;
     }
 
     .intro {
       margin: 14px 0 34px;
-      color: #687067;
+      color: #656d76;
       font-size: 16px;
       text-align: center;
     }
@@ -57,26 +55,24 @@
       min-height: 190px;
       align-content: center;
       gap: 10px;
-      border: 1px solid #dfe4dc;
-      border-radius: 24px;
+      border: 1px solid #d1d9e0;
+      border-radius: 6px;
       background: #fff;
-      box-shadow: 0 10px 28px rgba(29, 33, 28, 0.07);
       color: inherit;
       padding: 28px;
       text-align: center;
       text-decoration: none;
-      transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+      transition: background-color 140ms ease, border-color 140ms ease;
     }
 
     .choice:hover, .choice:focus-visible {
-      transform: translateY(-3px);
-      border-color: #2f6b45;
-      box-shadow: 0 14px 34px rgba(29, 33, 28, 0.12);
+      border-color: #656d76;
+      background: #f6f8fa;
     }
 
-    .choice:focus-visible { outline: 3px solid rgba(47, 107, 69, 0.28); outline-offset: 3px; }
-    .choice strong { color: #2f6b45; font-size: 23px; }
-    .choice span { color: #687067; font-size: 14px; line-height: 1.5; }
+    .choice:focus-visible { outline: 2px solid #afb8c1; outline-offset: 2px; }
+    .choice strong { font-size: 20px; }
+    .choice span { color: #656d76; font-size: 14px; line-height: 1.5; }
 
     @media (max-width: 580px) {
       .choices { grid-template-columns: 1fr; }
