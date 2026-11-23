@@ -141,7 +141,7 @@ class ApiAppContractTests(unittest.TestCase):
         self.assertIn("currentActivities.get(workout.id).activity", delete)
         self.assertIn("findMatchingIntervalsActivities(activities, key)", delete)
         self.assertIn('fields: "id,external_id"', JAVASCRIPT)
-        self.assertIn("candidate.external_id === activity.external_id", JAVASCRIPT)
+        self.assertIn("selectedByExternalId.has(candidate.external_id)", JAVASCRIPT)
         self.assertIn("found.length > 1", JAVASCRIPT)
         self.assertIn('{ method: "DELETE" }', delete)
         self.assertIn("selectedWorkoutIds = new Set([...selectedWorkoutIds].filter((id) => !selectedIds.has(id)));", delete)
@@ -153,6 +153,19 @@ class ApiAppContractTests(unittest.TestCase):
         self.assertNotIn('"error"', no_match)
         self.assertNotIn("missingCount", delete)
         self.assertNotIn("no matching Intervals.icu activity", delete)
+
+    def test_delete_lookup_uses_selected_date_range_in_one_request(self):
+        lookup = JAVASCRIPT.split("async function findMatchingIntervalsActivities", 1)[1].split(
+            "async function deleteSelectedActivities", 1
+        )[0]
+        self.assertIn("const dates = [];", lookup)
+        self.assertIn("dates.sort();", lookup)
+        self.assertIn("const oldest = dates[0];", lookup)
+        self.assertIn("const newest = dateAfter(dates[dates.length - 1]);", lookup)
+        self.assertIn('oldest: `${oldest}T00:00:00`', lookup)
+        self.assertIn('newest: `${newest}T00:00:00`', lookup)
+        self.assertEqual(1, lookup.count("await intervalsRequest("))
+        self.assertNotIn("for (const [date", lookup)
 
     def test_external_requests_have_a_finite_timeout(self):
         self.assertIn("const REQUEST_TIMEOUT_MS = 15000;", JAVASCRIPT)

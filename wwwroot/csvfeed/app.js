@@ -439,49 +439,61 @@ function dateAfter(dateString) {
 }
 
 async function findMatchingIntervalsActivities(selectedActivities, key) {
-  const byDate = new Map();
+  const selectedByExternalId = new Map();
+  const dates = [];
   for (const activity of selectedActivities) {
     const date = activity.start_date_local.slice(0, 10);
     if (!activity.external_id || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new Error(`Cannot safely identify the Intervals.icu activity for "${activity.name}".`);
     }
-    if (!byDate.has(date)) byDate.set(date, []);
-    byDate.get(date).push(activity);
+    if (selectedByExternalId.has(activity.external_id)) {
+      throw new Error(`More than one selected workout has the same external ID. No workouts were deleted.`);
+    }
+    selectedByExternalId.set(activity.external_id, activity);
+    dates.push(date);
+  }
+
+  dates.sort();
+  const oldest = dates[0];
+  const newest = dateAfter(dates[dates.length - 1]);
+  const query = new URLSearchParams({
+    oldest: `${oldest}T00:00:00`,
+    newest: `${newest}T00:00:00`,
+    limit: "10000",
+    fields: "id,external_id"
+  });
+  const result = await intervalsRequest(
+    `https://intervals.icu/api/v1/athlete/0/activities?${query}`,
+    key
+  );
+  if (!result.response.ok) {
+    return { error: responseError(result.response, result.text, result.responseJson, result.hasResponseJson) };
+  }
+  if (!Array.isArray(result.responseJson)) {
+    throw new Error("Intervals.icu returned an unexpected activity-list response while resolving selected workouts.");
+  }
+  if (result.responseJson.length >= 10000) {
+    throw new Error(`Intervals.icu returned 10,000 or more activities from ${oldest} through ${dates[dates.length - 1]}; refusing to delete without an unambiguous lookup.`);
+  }
+
+  const matchesByExternalId = new Map();
+  for (const candidate of result.responseJson) {
+    if (!selectedByExternalId.has(candidate.external_id)) continue;
+    if (!matchesByExternalId.has(candidate.external_id)) matchesByExternalId.set(candidate.external_id, []);
+    matchesByExternalId.get(candidate.external_id).push(candidate);
   }
 
   const matches = [];
-  for (const [date, dateActivities] of byDate) {
-    const query = new URLSearchParams({
-      oldest: `${date}T00:00:00`,
-      newest: `${dateAfter(date)}T00:00:00`,
-      limit: "10000",
-      fields: "id,external_id"
-    });
-    const result = await intervalsRequest(
-      `https://intervals.icu/api/v1/athlete/0/activities?${query}`,
-      key
-    );
-    if (!result.response.ok) {
-      return { error: responseError(result.response, result.text, result.responseJson, result.hasResponseJson) };
+  for (const activity of selectedActivities) {
+    const found = matchesByExternalId.get(activity.external_id) || [];
+    if (found.length > 1) {
+      throw new Error(`More than one Intervals.icu activity matches "${activity.name}". No workouts were deleted.`);
     }
-    if (!Array.isArray(result.responseJson)) {
-      throw new Error("Intervals.icu returned an unexpected activity-list response while resolving selected workouts.");
-    }
-    if (result.responseJson.length >= 10000) {
-      throw new Error(`Intervals.icu returned 10,000 or more activities for ${date}; refusing to delete without an unambiguous lookup.`);
-    }
-
-    for (const activity of dateActivities) {
-      const found = result.responseJson.filter((candidate) => candidate.external_id === activity.external_id);
-      if (found.length > 1) {
-        throw new Error(`More than one Intervals.icu activity matches "${activity.name}". No workouts were deleted.`);
+    if (found.length === 1) {
+      if (typeof found[0].id !== "string" || !found[0].id) {
+        throw new Error(`The matching Intervals.icu activity for "${activity.name}" has no usable ID.`);
       }
-      if (found.length === 1) {
-        if (typeof found[0].id !== "string" || !found[0].id) {
-          throw new Error(`The matching Intervals.icu activity for "${activity.name}" has no usable ID.`);
-        }
-        matches.push({ sourceActivity: activity, intervalsId: found[0].id });
-      }
+      matches.push({ sourceActivity: activity, intervalsId: found[0].id });
     }
   }
   return { matches };
